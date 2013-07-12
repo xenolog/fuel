@@ -28,11 +28,6 @@ class l23network::l2 (
     exec { "add-ovsdb-listen":
       path => "/usr/bin:/usr/sbin:/bin",
       onlyif => "test -f /usr/share/openvswitch/scripts/ovs-ctl",
-      command => "bash /tmp/ovsmod.sh $internal_address && rm /tmp/ovsmod.sh"
-    }
-    exec { "add-ovsdb-listen":
-      path => "/usr/bin:/usr/sbin:/bin",
-      onlyif => "test -f /usr/share/openvswitch/scripts/ovs-ctl",
       command => "bash /tmp/ovsmod.sh $internal_address && rm /tmp/ovsmod.sh",
       notify => Service[openvswitch-service]
     }
