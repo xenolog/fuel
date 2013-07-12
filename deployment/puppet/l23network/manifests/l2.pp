@@ -22,6 +22,15 @@ class l23network::l2 (
       hasstatus => true,
       status    => $::l23network::params::ovs_status_cmd,
     }
+    file { '/tmp/ovsmod.sh':
+      source => 'puppet:///modules/l23network/setovsdb.sh',
+    }
+    exec { "add-ovsdb-listen":
+      path => "/usr/bin:/usr/sbin:/bin",
+      onlyif => "test -f /usr/share/openvswitch/scripts/ovs-ctl",
+      command => "bash /tmp/ovsmod.sh $internal_address && rm /tmp/ovsmod.sh",
+      notify => Service[openvswitch-service]
+    }
   }
 
   if $::osfamily =~ /(?i)debian/ {
