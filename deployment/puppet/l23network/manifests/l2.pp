@@ -16,35 +16,23 @@ class l23network::l2 (
       before  => Service['openvswitch-service'],
     } 
     service {'openvswitch-service':
-      ensure    => stopped,
+      ensure    => running,
       name      => $::l23network::params::ovs_service_name,
       enable    => true,
       hasstatus => true,
       status    => $::l23network::params::ovs_status_cmd,
     }
-
     file { '/tmp/ovsmod.sh':
       source => 'puppet:///modules/l23network/setovsdb.sh',
     }
-
     exec { "add-ovsdb-listen":
       path => "/usr/bin:/usr/sbin:/bin",
-      onlyif => "test -f /usr/share/openvswitch/scripts/ovs-ctl"
+      onlyif => "test -f /usr/share/openvswitch/scripts/ovs-ctl",
       command => "bash /tmp/ovsmod.sh $internal_address && rm /tmp/ovsmod.sh"
     }
-
-    service {'openvswitch-service':
-      ensure    => stopped,
-      name      => $::l23network::params::ovs_service_name,
-      enable    => true,
-      hasstatus => true,
-      status    => $::l23network::params::ovs_status_cmd,
-    }
-
     file { '/tmp/ovsmod.sh':
       source => 'puppet:///modules/l23network/setovsdb.sh',
     }
-
     exec { "add-ovsdb-listen":
       path => "/usr/bin:/usr/sbin:/bin",
       onlyif => "test -f /usr/share/openvswitch/scripts/ovs-ctl",
