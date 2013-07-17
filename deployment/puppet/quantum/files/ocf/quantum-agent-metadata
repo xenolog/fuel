@@ -124,7 +124,6 @@ The pid file to use for this Quantum Metadata Agent service (quantum-metadata-ag
 <action name="stop" timeout="20" />
 <action name="status" timeout="20" />
 <action name="monitor" timeout="30" interval="20" />
-<action name="validate" timeout="5" />
 <action name="validate-all" timeout="5" />
 <action name="meta-data" timeout="5" />
 </actions>
