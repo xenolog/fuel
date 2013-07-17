@@ -185,7 +185,7 @@ class CobblerTestCase(BaseTestCase):
             node.await('internal')
 
         if SLEEP4SV > 60:
-            sleep(SLEEP4SV)
+            sleep(float(SLEEP4SV))
 
         self.environment().snapshot('nodes-deployed', force=True)
 
