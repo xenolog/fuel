@@ -140,7 +140,7 @@ Lock file
 <action name="stop" timeout="20" />
 <action name="status" timeout="20" />
 <action name="monitor" timeout="30" interval="20" />
-<action name="validate-all" timeout="5" />
+<action name="validate" timeout="5" />
 <action name="meta-data" timeout="5" />
 </actions>
 </resource-agent>
@@ -154,17 +154,8 @@ rabbit_mq_validate() {
     local rc
 
     check_binary $OCF_RESKEY_binary
+    check_binary $OCF_RESKEY_control
     check_binary netstat
-
-    # A config file on shared storage that is not available
-    # during probes is OK.
-    if [ ! -f $OCF_RESKEY_config ]; then
-        if ! ocf_is_probe; then
-            ocf_log err "Config $OCF_RESKEY_config doesn't exist"
-            return $OCF_ERR_INSTALLED
-        fi
-        ocf_log_warn "Config $OCF_RESKEY_config not available during a probe"
-    fi
 
     getent passwd $OCF_RESKEY_user >/dev/null 2>&1
     rc=$?
@@ -173,22 +164,28 @@ rabbit_mq_validate() {
         return $OCF_ERR_INSTALLED
     fi
 
+    if ! [ -d $OCF_RESKEY_init_log_dir ]; then
+        ocf_log err "Directory $OCF_RESKEY_init_log_dir does not exist"
+        return $OCF_ERR_INSTALLED
+    fi
+
     true
 }
+
 
 rabbit_mq_status() {
     local pid
     local rc
 
     if [ ! -f $OCF_RESKEY_pid ]; then
-        ocf_log info "OpenStack Quantum Metadata Agent (quantum-metadata-agent) seems not to exist"
+        ocf_log info "Rabbit-MQ server seems not to exist"
         
         pid=`pgrep -f ${OCF_RESKEY_binary}`
         
         if [ $? -eq 0 ]
         then
-        	ocf_log warn "OpenStack Quantum Metadata Agent (quantum-metadata-agent) was run, but no pid file found."
-        	ocf_log warn "Will use $pid as PID of process (quantum-metadata-agent)"
+        	ocf_log warn "Rabbit-MQ server was run, but no pid file found."
+        	ocf_log warn "Will use $pid as PID of process Rabbit-MQ server"
         	ocf_log warn "Writing $pid into $OCF_RESKEY_pid"
         	echo $pid > $OCF_RESKEY_pid
     	else
@@ -198,12 +195,12 @@ rabbit_mq_status() {
         pid=`cat $OCF_RESKEY_pid`
     fi
 
-    ocf_run -warn kill -s 0 $pid
+    $OCF_RESKEY_control status > /dev/null 2>&1
     rc=$?
     if [ $rc -eq 0 ]; then
         return $OCF_SUCCESS
     else
-        ocf_log info "Old PID file $OCF_RESKEY_pid found (with pid $pid), but OpenStack Quantum Metadata Agent (quantum-metadata-agent) is not running"
+        ocf_log info "Old PID file $OCF_RESKEY_pid found (with pid $pid), but Rabbit-MQ server is not running"
         return $OCF_NOT_RUNNING
     fi
 }
@@ -224,7 +221,7 @@ rabbit_mq_start() {
     rabbit_mq_status
     rc=$?
     if [ $rc -eq $OCF_SUCCESS ]; then
-        ocf_log info "OpenStack Quantum Metadata Agent (quantum-metadata-agent) already running"
+        ocf_log info "Rabbit-MQ server already running"
         return $OCF_SUCCESS
     fi
     
@@ -243,13 +240,13 @@ rabbit_mq_start() {
     rc=$?
     [ $rc -eq $OCF_SUCCESS ] && break
     if [ $rc -ne $OCF_NOT_RUNNING ]; then
-        ocf_log err "OpenStack Quantum Metadata Agent (quantum-metadata-agent) start failed"
+        ocf_log err "Rabbit-MQ server start failed"
         exit $OCF_ERR_GENERIC
     fi
     sleep 1
     done
 
-    ocf_log info "OpenStack Quantum Metadata Agent (quantum-metadata-agent) started"
+    ocf_log info "Rabbit-MQ server started"
     return $OCF_SUCCESS
 }
 
@@ -261,7 +258,7 @@ rabbit_mq_stop() {
     rc=$?
     if [ $rc -eq $OCF_NOT_RUNNING ]; then
     	clean_up
-        ocf_log info "OpenStack Quantum Metadata Agent (quantum-metadata-agent) already stopped"
+        ocf_log info "Rabbit-MQ server already stopped"
         return $OCF_SUCCESS
     fi
 
@@ -270,7 +267,7 @@ rabbit_mq_stop() {
     ocf_run kill -s TERM $pid
     rc=$?
     if [ $rc -ne 0 ]; then
-        ocf_log err "OpenStack Quantum Metadata Agent (quantum-metadata-agent) couldn't be stopped"
+        ocf_log err "Rabbit-MQ server couldn't be stopped"
         exit $OCF_ERR_GENERIC
     fi
 
@@ -288,21 +285,21 @@ rabbit_mq_stop() {
         fi
         count=`expr $count + 1`
         sleep 1
-        ocf_log debug "OpenStack Quantum Metadata Agent (quantum-metadata-agent) still hasn't stopped yet. Waiting ..."
+        ocf_log debug "Rabbit-MQ server still hasn't stopped yet. Waiting ..."
     done
 
     rabbit_mq_status
     rc=$?
     if [ $rc -ne $OCF_NOT_RUNNING ]; then
         # SIGTERM didn't help either, try SIGKILL
-        ocf_log info "OpenStack Quantum Metadata Agent (quantum-metadata-agent) failed to stop after ${shutdown_timeout}s \
+        ocf_log info "Rabbit-MQ server failed to stop after ${shutdown_timeout}s \
           using SIGTERM. Trying SIGKILL ..."
         ocf_run kill -s KILL $pid
     fi
 
     clean_up 
 
-    ocf_log info "OpenStack Quantum Metadata Agent (quantum-metadata-agent) stopped"
+    ocf_log info "Rabbit-MQ server stopped"
 
     rm -f $OCF_RESKEY_pid
 
@@ -327,7 +324,7 @@ case "$1" in
   stop)         rabbit_mq_stop;;
   status)       rabbit_mq_status;;
   monitor)      rabbit_mq_monitor;;
-  validate-all) ;;
+  validate)     rabbit_mq_validate;;
   *)            usage
                 exit $OCF_ERR_UNIMPLEMENTED;;
 esac
