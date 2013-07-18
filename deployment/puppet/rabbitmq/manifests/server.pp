@@ -86,6 +86,18 @@ class rabbitmq::server(
     notify => Class['rabbitmq::service'],
   }
 
+  file { 'limitsconf':
+    ensure  => present,
+    path    => '/etc/security/limits.conf',
+    source => 'puppet:///modules/rabbitmq/security.conf',
+    replace => true,
+    owner   => '0',
+    group   => '0',
+    mode    => '0644',
+    notify  => Class['rabbitmq::service'],
+  }
+
+
   file { '/etc/rabbitmq':
     ensure  => directory,
     owner   => '0',
