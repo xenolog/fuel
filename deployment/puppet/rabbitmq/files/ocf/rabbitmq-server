@@ -216,6 +216,16 @@ clean_up() {
 	ocf_log info "cleaning up Rabbit-MQ server. nothing to do."
 }
 
+<<<<<<< HEAD
+=======
+# rotate_logs_rabbitmq() {
+#     $OCF_RESKEY_control rotate_logs > /dev/null 2>&1
+#     if [ $? != 0 ] ; then
+#         RETVAL=1
+#     fi
+# }
+
+>>>>>>> xenolog/q_metadata_fix__PR6_ns
 rabbit_mq_start() {
     local rc
     
