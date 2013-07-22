@@ -5,9 +5,10 @@ class quantum::agents::dhcp (
   $verbose          = 'False',
   $debug            = 'False',
   $state_path       = '/var/lib/quantum',
-  $resync_interval  = 30,
+  $resync_interval  = 10,
   $interface_driver = 'quantum.agent.linux.interface.OVSInterfaceDriver',
   $dhcp_driver      = 'quantum.agent.linux.dhcp.Dnsmasq',
+  $dhcp_agent_manager='quantum.agent.dhcp_agent.DhcpAgentWithStateReport',
   $use_namespaces   = $::quantum_use_namespaces,
   $root_helper      = 'sudo /usr/bin/quantum-rootwrap /etc/quantum/rootwrap.conf',
   $service_provider = 'generic',
@@ -53,14 +54,18 @@ class quantum::agents::dhcp (
   Package[$dhcp_agent_package] -> Quantum_config <| |>
 
   quantum_dhcp_agent_config {
-    'DEFAULT/debug':            value => $debug;
-    'DEFAULT/state_path':       value => $state_path;
-    'DEFAULT/resync_interval':  value => $resync_interval;
-    'DEFAULT/interface_driver': value => $interface_driver;
-    'DEFAULT/dhcp_driver':      value => $dhcp_driver;
-    'DEFAULT/use_namespaces':   value => $use_namespaces;
-    'DEFAULT/root_helper':      value => $root_helper;
-    'DEFAULT/verbose':          value => $verbose;
+    'DEFAULT/debug':             value => $debug;
+    'DEFAULT/verbose':           value => $verbose;
+    'DEFAULT/state_path':        value => $state_path;
+    'DEFAULT/resync_interval':   value => $resync_interval;
+    'DEFAULT/interface_driver':  value => $interface_driver;
+    'DEFAULT/dhcp_driver':       value => $dhcp_driver;
+    'DEFAULT/use_namespaces':    value => $use_namespaces;
+    'DEFAULT/root_helper':       value => $root_helper;
+    #'DEFAULT/signing_dir':      value => '/var/cache/quantum';
+    'DEFAULT/enable_isolated_metadata': value => false;
+    'DEFAULT/enable_metadata_network':  value => false;
+    'DEFAULT/dhcp_agent_manager':       value => $dhcp_agent_manager;
   }
 
   if $enabled {
@@ -78,7 +83,7 @@ class quantum::agents::dhcp (
     # OCF script for pacemaker
     # and his dependences
     file {'quantum-dhcp-agent-ocf':
-      path=>'/usr/lib/ocf/resource.d/mirantis/quantum-agent-dhcp', 
+      path=>'/usr/lib/ocf/resource.d/mirantis/quantum-agent-dhcp',
       mode => 744,
       owner => root,
       group => root,
@@ -87,7 +92,7 @@ class quantum::agents::dhcp (
     Package['pacemaker'] -> File['quantum-dhcp-agent-ocf']
     File['quantum-dhcp-agent-ocf'] -> Cs_resource["p_${::quantum::params::dhcp_agent_service}"]
     File['q-agent-cleanup.py'] -> Cs_resource["p_${::quantum::params::dhcp_agent_service}"]
-    
+
     File<| title=='quantum-logging.conf' |> ->
     cs_resource { "p_${::quantum::params::dhcp_agent_service}":
       ensure          => present,
@@ -139,7 +144,7 @@ class quantum::agents::dhcp (
       ensure     => present,
       cib        => 'dhcp',
       primitives => [
-        "p_${::quantum::params::dhcp_agent_service}", 
+        "p_${::quantum::params::dhcp_agent_service}",
         "clone_p_${::quantum::params::ovs_agent_service}"
       ],
       score      => 'INFINITY',
@@ -156,11 +161,11 @@ class quantum::agents::dhcp (
       ensure     => present,
       cib        => 'dhcp',
       primitives => [
-        "p_${::quantum::params::dhcp_agent_service}", 
+        "p_${::quantum::params::dhcp_agent_service}",
         "clone_p_quantum-metadata-agent"
       ],
       score      => 'INFINITY',
-    } -> 
+    } ->
     cs_order { 'dhcp-after-metadata':
       ensure => present,
       cib    => 'dhcp',
@@ -181,6 +186,7 @@ class quantum::agents::dhcp (
       require    => [Package[$dhcp_agent_package], Class['quantum']],
     }
 
+    Quantum::Network::Provider_router<||> -> Service<| title=='quantum-dhcp-service' |>
     service { 'quantum-dhcp-service':
       name       => "p_${::quantum::params::dhcp_agent_service}",
       enable     => $enabled,
@@ -208,7 +214,7 @@ class quantum::agents::dhcp (
   Class[quantum::waistline] -> Service[quantum-dhcp-service]
 
   Anchor['quantum-dhcp-agent'] ->
-    Quantum_dhcp_agent_config <| |> ->  
+    Quantum_dhcp_agent_config <| |> ->
       Cs_resource<| title=="p_${::quantum::params::dhcp_agent_service}" |> ->
         Service['quantum-dhcp-service'] ->
           Anchor['quantum-dhcp-agent-done']
