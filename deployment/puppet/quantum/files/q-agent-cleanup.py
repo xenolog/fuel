@@ -385,6 +385,7 @@ class QuantumCleaner(object):
                     lambda net: dead_routers.append(net),
                     self._list_routers_on_l3_agent(agent['id'])
                 )
+        self.log.debug("L3 agents in cluster: {rr}".format(rr=json.dumps(agents, indent=4)))
         if dead_routers and agents['alive']:
             # get router-ID list of already attached to alive agent routerss
             lucky_ids = set()
@@ -393,8 +394,7 @@ class QuantumCleaner(object):
                 self._list_routers_on_l3_agent(agents['alive'][0]['id'])
             )
             # add dead routers to alive agent
-
-            for rou in filter(lambda rou: rou['id'] in lucky_ids, dead_routers):
+            for rou in filter(lambda rou: rou['id'] not in lucky_ids, dead_routers):
                 # attach network to agent
                 self.log.info("schedule router {rou} to L3 agent {agent}".format(
                     rou=rou['id'],
