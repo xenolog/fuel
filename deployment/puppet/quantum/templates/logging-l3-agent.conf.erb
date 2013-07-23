@@ -16,7 +16,7 @@ format = quantum-l3-agent: %(levelname)s %(message)s
 
 [logger_root]
 level = NOTSET
-handlers = syslog<% if @debug then -%>, file<% end -%>
+handlers = syslog<% if @debug then -%>, file<% end %>
 propagate = 1
 
 
