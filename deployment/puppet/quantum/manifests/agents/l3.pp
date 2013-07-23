@@ -31,6 +31,14 @@ class quantum::agents::l3 (
 ) {
   include 'quantum::params'
 
+  file { "quantum-logging-l3-agent.conf":
+    content => template('quantum/logging-l3-agent.conf.erb'),
+    path  => "/etc/quantum/logging-l3-agent.conf",
+    owner => "root",
+    group => "root",
+    mode  => 644,
+  } -> File<| title=='quantum-logging.conf' |>
+
   anchor {'quantum-l3': }
   #Class['quantum'] -> Anchor['quantum-l3']
   Service<| title=='quantum-server' |> -> Anchor['quantum-l3']
@@ -72,6 +80,7 @@ class quantum::agents::l3 (
     'DEFAULT/admin_password': value => $auth_password;
     'DEFAULT/admin_tenant_name': value => $auth_tenant;
     'DEFAULT/external_network_bridge': value => $external_network_bridge;
+    'DEFAULT/log_config':     value => '/etc/quantum/logging-l3-agent.conf';
     ## todo: check for compatible with quantum-metadata-agent
     #'DEFAULT/metadata_ip': value => $metadata_ip;
    #'DEFAULT/router_id':               value => $router_id;

@@ -1,0 +1,38 @@
+[loggers]
+keys = root
+
+[handlers]
+keys = syslog, file
+
+[formatters]
+keys = syslog, file
+
+[formatter_file]
+format=%(asctime)s %(levelname)s %(module)s %(name)s:%(lineno)d %(funcName)s  %(message)s
+
+[formatter_syslog]
+format = quantum-l3-agent: %(levelname)s %(message)s
+
+
+[logger_root]
+level = NOTSET
+handlers = syslog<% if @debug then -%>, file<% end -%>
+propagate = 1
+
+
+[handler_file]
+class = logging.FileHandler
+args = ('/var/log/quantum/quantum_l3.log',)
+formatter = file
+
+[handler_syslog]
+class = handlers.SysLogHandler
+<% if @debug then -%>
+level = DEBUG
+<% else -%>
+level = INFO
+<% end -%>
+args = ('/dev/log', handlers.SysLogHandler.LOG_LOCAL4)
+formatter = syslog
+#
+###
