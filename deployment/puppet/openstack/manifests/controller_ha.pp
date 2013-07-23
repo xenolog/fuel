@@ -46,13 +46,37 @@ define haproxy_service(
       $balancer_port = 4369
     }
     "rabbitmq-openstack": {
-      $haproxy_config_options = { 'option' => ['tcpka'], 'timeout client' => '48h', 'timeout server' => '48h', 'balance' => 'roundrobin', 'mode' => 'tcp'}
+      $haproxy_config_options = { 'option' => ['tcpka'], 'timeout client' => '48h', 'timeout server' => '48h', 'balance' => 'source', 'mode' => 'tcp'}
       $balancermember_options = 'check inter 5000 rise 2 fall 3'
       $balancer_port = 5673
     }
+     
+     "nova-api-1": {
+       $haproxy_config_options = { 'option' => ['tcplog'], 'balance' => 'source',  }
+       $balancermember_options = 'check'
+       $balancer_port = $port
+     }
+     
+     "nova-api-3": {
+       $haproxy_config_options = { 'option' => ['tcplog'], 'balance' => 'source' }
+       $balancermember_options = 'check'
+       $balancer_port = $port
+     }
+     
+     "glance-reg": {
+       $haproxy_config_options = { 'option' => ['tcplog'], 'balance' => 'source' }
+       $balancermember_options = 'check'
+       $balancer_port = $port
+     }
+     
+     "swift": {
+       $haproxy_config_options = { 'option' => ['httplog'], 'balance' => 'source' }
+       $balancermember_options = 'check'
+       $balancer_port = $port
+     }
 
     default: {
-      $haproxy_config_options = { 'option' => ['httplog'], 'balance' => 'roundrobin' }
+      $haproxy_config_options = { 'option' => ['httplog', 'httpchk'], 'balance' => 'source', 'mode' => 'http' }
       $balancermember_options = 'check'
       $balancer_port = $port
     }
@@ -201,7 +225,7 @@ class openstack::controller_ha (
     haproxy_service { 'glance-api': order => 80, port => 9292, virtual_ips => [$public_virtual_ip, $internal_virtual_ip]  }
 
     if $quantum {
-      haproxy_service { 'quantum': order => 85, port => 9696, virtual_ips => [$public_virtual_ip, $internal_virtual_ip]  }
+      haproxy_service { 'quantum': order => 85, port => 9696, virtual_ips => [$public_virtual_ip, $internal_virtual_ip], define_backend => true }
     }
 
     haproxy_service { 'glance-reg': order => 90, port => 9191, virtual_ips => [$internal_virtual_ip]  }
@@ -244,11 +268,11 @@ class openstack::controller_ha (
     Anchor['haproxy_done'] -> Class['galera']
 
     class { '::openstack::controller':
-      public_address          => $public_virtual_ip,
-      public_interface        => $public_interface,
       private_interface       => $private_interface,
-      internal_address        => $internal_virtual_ip,
-      admin_address           => $internal_virtual_ip,
+      public_interface        => $public_interface,
+      public_address          => $public_virtual_ip,    # It is feature for HA mode.
+      internal_address        => $internal_virtual_ip,  # All internal traffic goes
+      admin_address           => $internal_virtual_ip,  # through load balancer.
       floating_range          => $floating_range,
       fixed_range             => $fixed_range,
       multi_host              => $multi_host,
