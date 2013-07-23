@@ -66,6 +66,9 @@ class quantum::agents::metadata (
       enable  => true,
       ensure  => $ensure,
     }
+    quantum_metadata_agent_config {
+      'DEFAULT/log_config':     value => "/etc/quantum/logging.conf";
+    }
 
     Anchor['quantum-metadata-agent'] ->
       Quantum_metadata_agent_config<||> ->
@@ -88,6 +91,19 @@ class quantum::agents::metadata (
       enable  => false,
       ensure  => stopped,
     }
+    quantum_metadata_agent_config {
+      'DEFAULT/log_config':     value => "/etc/quantum/logging_agent.conf";
+    }
+    if $debug {
+      $local_log='/var/log/quantum/metadata.log'
+    } else {
+      $local_log=''
+    }
+    if $use_syslog {
+      $syslog_tag='quantum.agent.metadata'
+    } else {
+      $syslog_tag=''
+    }
 
     Cs_commit <| title == 'ovs' |> -> Cs_shadow <| title == "$res_name" |>
 
@@ -103,9 +119,8 @@ class quantum::agents::metadata (
       provided_by     => 'mirantis',
       primitive_type  => 'quantum-agent-metadata',
       parameters => {
-        #'nic'     => $vip[nic],
-        #'ip'      => $vip[ip],
-        #'iflabel' => $vip[iflabel] ? { undef => 'ka', default => $vip[iflabel] },
+        'log_file'    => $local_log,
+        'syslog_tag'  => $syslog_tag
       },
       multistate_hash => {
         'type' => 'clone',

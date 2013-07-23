@@ -37,12 +37,16 @@ OCF_RESKEY_config_default="/etc/quantum/quantum.conf"
 OCF_RESKEY_agent_config_default="/etc/quantum/metadata_agent.ini"
 OCF_RESKEY_user_default="quantum"
 OCF_RESKEY_pid_default="$HA_RSCTMP/$OCF_RESOURCE_INSTANCE.pid"
+OCF_RESKEY_log_file_default="/var/log/quantum/metadata.log"
+OCF_RESKEY_syslog_tag_default="quantum.agent.metadata"
 
 : ${OCF_RESKEY_binary=${OCF_RESKEY_binary_default}}
 : ${OCF_RESKEY_config=${OCF_RESKEY_config_default}}
 : ${OCF_RESKEY_agent_config=${OCF_RESKEY_agent_config_default}}
 : ${OCF_RESKEY_user=${OCF_RESKEY_user_default}}
 : ${OCF_RESKEY_pid=${OCF_RESKEY_pid_default}}
+: ${OCF_RESKEY_log_file=${OCF_RESKEY_log_file_default}}
+: ${OCF_RESKEY_syslog_tag=${OCF_RESKEY_syslog_tag_default}}
 
 #######################################################################
 
@@ -115,6 +119,22 @@ The pid file to use for this Quantum Metadata Agent service (quantum-metadata-ag
 </longdesc>
 <shortdesc lang="en">OpenStack Quantum Metadata Agent service (quantum-metadata-agent) pid file</shortdesc>
 <content type="string" default="${OCF_RESKEY_pid_default}" />
+</parameter>
+
+<parameter name="syslog_tag" unique="0" required="0">
+<longdesc lang="en">
+TAG for syslog, empty string for disable syslog logging.
+</longdesc>
+<shortdesc lang="en">TAG for syslog</shortdesc>
+<content type="string" default="${OCF_RESKEY_syslog_tag_default}" />
+</parameter>
+
+<parameter name="log_file" unique="0" required="0">
+<longdesc lang="en">
+Local log file, empty string for disable local logging.
+</longdesc>
+<shortdesc lang="en">Local log file</shortdesc>
+<content type="string" default="${OCF_RESKEY_log_file_default}" />
 </parameter>
 
 </parameters>
@@ -214,11 +234,18 @@ quantum_metadata_agent_start() {
 
     clean_up
 
+    LOG=""
+    if [[ ${OCF_RESKEY_log_file} -ne "" ]] ; then
+        LOG="| tee -ia ${OCF_RESKEY_log_file} "
+    fi
+    if [[ ${OCF_RESKEY_syslog_tag} -ne "" ]] ; then
+        SYSLOG="| logger -t ${OCF_RESKEY_syslog_tag} "
+    fi
     # run the actual quantum-metadata-agent daemon. Don't use ocf_run as we're sending the tool's output
     # straight to /dev/null anyway and using ocf_run would break stdout-redirection here.
     su ${OCF_RESKEY_user} -s /bin/sh -c "${OCF_RESKEY_binary} --config-file=$OCF_RESKEY_config \
-       --config-file=$OCF_RESKEY_agent_config $OCF_RESKEY_additional_parameters"' >> \
-	/dev/null 2>&1 & echo $!' > $OCF_RESKEY_pid
+        --nouse-syslog --config-file=$OCF_RESKEY_plugin_config $OCF_RESKEY_additional_parameters 2>&1 \
+        $LOG $SYSLOG"' & echo $!' > $OCF_RESKEY_pid
 
     # Spin waiting for the server to come up.
     # Let the CRM/LRM time us out if required

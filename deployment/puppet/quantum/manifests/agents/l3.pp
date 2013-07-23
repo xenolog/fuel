@@ -230,6 +230,10 @@ class quantum::agents::l3 (
 
   if $service_provider == 'pacemaker' {
 
+    quantum_l3_agent_config {
+      'DEFAULT/log_config':     value => "/etc/quantum/logging_agent.conf";
+    }
+
     Service<| title == 'quantum-server' |> -> Cs_shadow['l3']
     Quantum_l3_agent_config <||> -> Cs_shadow['l3']
 
@@ -246,6 +250,17 @@ class quantum::agents::l3 (
     File['quantum-l3-agent-ocf'] -> Cs_resource["p_${::quantum::params::l3_agent_service}"]
     File['q-agent-cleanup.py'] -> Cs_resource["p_${::quantum::params::l3_agent_service}"]
 
+    if $debug {
+      $local_log='/var/log/quantum/l3.log'
+    } else {
+      $local_log=''
+    }
+    if $use_syslog {
+      $syslog_tag='quantum.agent.l3'
+    } else {
+      $syslog_tag=''
+    }
+
     cs_resource { "p_${::quantum::params::l3_agent_service}":
       ensure          => present,
       cib             => 'l3',
@@ -258,6 +273,8 @@ class quantum::agents::l3 (
         'tenant'      => $auth_tenant,
         'username'    => $auth_user,
         'password'    => $auth_password,
+        'log_file'    => $local_log,
+        'syslog_tag'  => $syslog_tag
       },
       operations      => {
         'monitor'  => {
@@ -379,6 +396,10 @@ class quantum::agents::l3 (
     #   shared_secret => $::quantum_metadata_proxy_shared_secret
     # }
   } else {
+    quantum_l3_agent_config {
+      'DEFAULT/log_config':     value => "/etc/quantum/logging.conf";
+    }
+
     Quantum_config <| |> ~> Service['quantum-l3']
     Quantum_l3_agent_config <| |> ~> Service['quantum-l3']
     File<| title=='quantum-logging.conf' |> ->

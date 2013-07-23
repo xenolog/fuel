@@ -137,6 +137,13 @@ class quantum (
       'DEFAULT/log_file': ensure=> absent;
       'DEFAULT/logdir': ensure=> absent;
     }
+    file { "quantum-logging_agent.conf":
+      content => template('quantum/logging_agent.conf.erb'),
+      path  => "/etc/quantum/logging_agent.conf",
+      owner => "root",
+      group => "root",
+      mode  => 644,
+    } ->
     file { "quantum-logging.conf":
       content => template('quantum/logging.conf.erb'),
       path  => "/etc/quantum/logging.conf",
