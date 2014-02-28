@@ -86,7 +86,6 @@ class nova::rabbitmq(
       parameters      => {
         'debug'         => false,
         'service_name'  => 'rabbitmq-server',
-        'app_prefix'    => 'rabbitmq-server',
       },
       multistate_hash => {
         'type' => 'master',

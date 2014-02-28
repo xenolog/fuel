@@ -16,13 +16,14 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 
 OCF_RESKEY_binary_default="/bin/true"
 OCF_RESKEY_service_name_default="rabbitmq-server"
-OCF_RESKEY_app_prefix_default="amqp_agent"
 OCF_RESKEY_debug_default=false
 
 : ${OCF_RESKEY_binary=${OCF_RESKEY_binary_default}}
 : ${OCF_RESKEY_service_name=${OCF_RESKEY_service_name_default}}
-: ${OCF_RESKEY_app_prefix=${OCF_RESKEY_app_prefix_default}}
 : ${OCF_RESKEY_debug=${OCF_RESKEY_debug_default}}
+
+OCF_RESKEY_master_flag_file_default="/tmp/master__${OCF_RESKEY_service_name}"
+: ${OCF_RESKEY_master_flag_file=${OCF_RESKEY_master_flag_file_default}}
 
 #######################################################################
 
@@ -30,7 +31,7 @@ usage() {
     cat <<UEND
         usage: $0 (start|stop|validate-all|meta-data|status|monitor)
 
-        $0 manages an AMQP Agent (${OCF_RESKEY_binary}) process as an HA resource
+        $0 manages an AMQP Agent (${OCF_RESKEY_service_name}) process as an HA resource
 
         The 'start' operation starts the networking service.
         The 'stop' operation stops the networking service.
@@ -46,13 +47,13 @@ meta_data() {
     cat <<END
 <?xml version="1.0"?>
 <!DOCTYPE resource-agent SYSTEM "ra-api-1.dtd">
-<resource-agent name="neutron-metadata-agent">
+<resource-agent name="${OCF_RESKEY_service_name}">
 <version>1.0</version>
 
 <longdesc lang="en">
-Test for MS resource agent
+Resource agent for ${OCF_RESKEY_service_name}
 </longdesc>
-<shortdesc lang="en">Test for MS resource agent</shortdesc>
+<shortdesc lang="en">Resource agent for ${OCF_RESKEY_service_name}</shortdesc>
 <parameters>
 
 <parameter name="binary" unique="0" required="0">
@@ -65,25 +66,25 @@ Agent binary
 
 <parameter name="service_name" unique="0" required="0">
 <longdesc lang="en">
-Agent binary
+Agent system service name
 </longdesc>
 <shortdesc lang="en">Agent system service name</shortdesc>
 <content type="string" default="${OCF_RESKEY_service_name_default}" />
 </parameter>
 
-<parameter name="app_prefix" unique="0" required="0">
+<parameter name="master_flag_file" unique="0" required="0">
 <longdesc lang="en">
-App name prefix
+Master flag file
 </longdesc>
-<shortdesc lang="en">App name prefix</shortdesc>
-<content type="string" default="${OCF_RESKEY_app_prefix_default}" />
+<shortdesc lang="en">Master flag file</shortdesc>
+<content type="string" default="${OCF_RESKEY_master_flag_file}" />
 </parameter>
 
 <parameter name="debug" unique="0" required="0">
 <longdesc lang="en">
-The debug flag for  AMQP Agent (${OCF_RESKEY_binary}) instance
+The debug flag for  AMQP Agent (${OCF_RESKEY_service_name}) instance
 </longdesc>
-<shortdesc lang="en">AMQP Agent (${OCF_RESKEY_binary}) debug flag</shortdesc>
+<shortdesc lang="en">AMQP Agent (${OCF_RESKEY_service_name}) debug flag</shortdesc>
 <content type="boolean" default="${OCF_RESKEY_debug_default}" />
 </parameter>
 
@@ -107,7 +108,7 @@ END
 }
 
 # get_worker_pid() {
-#     pid=`pgrep -u ${OCF_RESKEY_user} -fol ${OCF_RESKEY_binary} | grep -E  "python\s+\/usr\/bin" | awk '{print $1}'`
+#     pid=`pgrep -u ${OCF_RESKEY_user} -fol ${OCF_RESKEY_service_name} | grep -E  "python\s+\/usr\/bin" | awk '{print $1}'`
 #     echo $pid
 # }
 
@@ -115,9 +116,6 @@ END
 # Functions invoked by resource manager actions
 
 agent_validate() {
-    #local d
-    #d=`date '+%Y%m%d %H:%M:%S'`
-    #echo "$d  [validate]  nothing to do" >> /tmp/${OCF_RESKEY_app_prefix}.log
     return $OCF_SUCCESS
 }
 
@@ -138,10 +136,8 @@ agent_status() {
     local rc
     local d
 
-    #d=`date '+%Y%m%d %H:%M:%S'`
     get_status
     rc=$?
-    #echo "$d  [status]  RC=$rc" >> /tmp/${OCF_RESKEY_app_prefix}.log
     return $rc
 }
 
@@ -155,7 +151,7 @@ get_monitor() {
     get_status
     rc=$?
 
-    if [ "$rc" == "$OCF_SUCCESS" -a -e /tmp/${OCF_RESKEY_app_prefix}_master ] ; then
+    if [ "$rc" == "$OCF_SUCCESS" -a -e ${OCF_RESKEY_master_flag_file} ] ; then
         rc=$OCF_RUNNING_MASTER
     fi
 
@@ -173,31 +169,18 @@ get_monitor() {
 }
 agent_monitor() {
     local rc
-    local d
-    local sk
 
-    # d=`date '+%Y%m%d %H:%M:%S'`
     get_monitor
     rc=$?
-
-    # sk=`cat /tmp/${OCF_RESKEY_app_prefix}_score`
-    # echo "$d  [monitor]  rc=$rc  MasterScore:$sk" >> /tmp/${OCF_RESKEY_app_prefix}.log
-
     return $rc
 }
 
 
 agent_notify() {
-    local d
-    #env | grep notify_ | sort >> /tmp/env-`echo $d | sed s/[\ \:]//g`
+    local rc
 
-    #d=`date '+%Y%m%d %H:%M:%S'`
     get_monitor
     rc=$?
-
-    #echo "$d  [$OCF_RESKEY_CRM_meta_notify_type $OCF_RESKEY_CRM_meta_notify_operation]  start=$OCF_RESKEY_CRM_meta_notify_start_uname stop=$OCF_RESKEY_CRM_meta_notify_stop_uname curr_master=$OCF_RESKEY_CRM_meta_notify_master_uname promote=$OCF_RESKEY_CRM_meta_notify_promote_uname demote=$OCF_RESKEY_CRM_meta_notify_demote_uname" >> /tmp/${OCF_RESKEY_app_prefix}.log
-    # OCF_RESKEY_CRM_meta_notify
-
     #return $rc
     return $OCF_SUCCESS
 }
@@ -214,14 +197,11 @@ agent_start() {
         return $OCF_SUCCESS
     fi
 
-    #d=`date '+%Y%m%d %H:%M:%S'`
     ocf_log warn "Agent (${OCF_RESKEY_service_name}) going to start."
     service ${OCF_RESKEY_service_name} start 2>&1 >> /dev/null
 
     get_status
     rc=$?
-
-    #echo "$d  [start]  rc=$rc " >> /tmp/${OCF_RESKEY_app_prefix}.log
     return $rc
 }
 
@@ -238,11 +218,13 @@ agent_stop() {
         return $OCF_SUCCESS
     fi
 
-    ocf_log warn "Agent (${OCF_RESKEY_service_name}) going to down."
-    service ${OCF_RESKEY_service_name} stop 2>&1 >> /dev/null
-
+    # remove master flag
+    rm -f ${OCF_RESKEY_master_flag_file}
     # remove master score
     crm_master -l reboot -D
+
+    ocf_log warn "Agent (${OCF_RESKEY_service_name}) going to down."
+    service ${OCF_RESKEY_service_name} stop 2>&1 >> /dev/null
 
     # stop waiting
     shutdown_timeout=15
@@ -276,8 +258,6 @@ agent_promote() {
     get_monitor
     rc=$?
 
-    #d=`date '+%Y%m%d %H:%M:%S'`
-    #env >> /tmp/env-`echo $d | sed s/[\ \:]//g`
     case "$rc" in
         "$OCF_SUCCESS")
             # Running as slave. Normal, expected behavior.
@@ -302,13 +282,14 @@ agent_promote() {
     esac
 
     # transform slave agent to master
-    echo > /tmp/${OCF_RESKEY_app_prefix}_master
+    echo > ${OCF_RESKEY_master_flag_file}
 
     return $OCF_SUCCESS
 }
 
 
 agent_demote() {
+    #local d
     local rc
     local pid
 
@@ -343,7 +324,7 @@ agent_demote() {
     esac
 
     # transform slave agent to master
-    rm -f /tmp/${OCF_RESKEY_app_prefix}_master
+    rm -f ${OCF_RESKEY_master_flag_file}
 
     #echo "$d  [demote]  rc=$rc" >> /tmp/${OCF_RESKEY_app_prefix}.log
     return $OCF_SUCCESS
