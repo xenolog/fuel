@@ -43,7 +43,7 @@ class nova::rabbitmq(
 
   class { 'rabbitmq::server':
     service_ensure     => $service_ensure,
-    port               => $port,
+    port               => '5672', #$port,
     delete_guest_user  => $delete_guest_user,
     config_cluster     => $cluster,
     cluster_disk_nodes => $cluster_nodes,
