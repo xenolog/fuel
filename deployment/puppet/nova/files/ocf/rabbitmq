@@ -17,10 +17,12 @@ PATH=/sbin:/usr/sbin:/bin:/usr/bin
 OCF_RESKEY_binary_default="/bin/true"
 OCF_RESKEY_service_name_default="rabbitmq-server"
 OCF_RESKEY_debug_default=false
+OCF_RESKEY_shutdown_timeout_default=15
 
 : ${OCF_RESKEY_binary=${OCF_RESKEY_binary_default}}
 : ${OCF_RESKEY_service_name=${OCF_RESKEY_service_name_default}}
 : ${OCF_RESKEY_debug=${OCF_RESKEY_debug_default}}
+: ${OCF_RESKEY_shutdown_timeout=${OCF_RESKEY_shutdown_timeout_default}}
 
 OCF_RESKEY_master_flag_file_default="/tmp/master__${OCF_RESKEY_service_name}"
 : ${OCF_RESKEY_master_flag_file=${OCF_RESKEY_master_flag_file_default}}
@@ -77,7 +79,15 @@ Agent system service name
 Master flag file
 </longdesc>
 <shortdesc lang="en">Master flag file</shortdesc>
-<content type="string" default="${OCF_RESKEY_master_flag_file}" />
+<content type="string" default="${OCF_RESKEY_master_flag_file_default}" />
+</parameter>
+
+<parameter name="shutdown_timeout" unique="0" required="0">
+<longdesc lang="en">
+Timeout for shutdown rabbitmq server before kill -TERM
+</longdesc>
+<shortdesc lang="en">Timeout for shutdown rabbitmq server</shortdesc>
+<content type="string" default="${OCF_RESKEY_shutdown_timeout_default}" />
 </parameter>
 
 <parameter name="debug" unique="0" required="0">
@@ -151,7 +161,11 @@ get_monitor() {
     get_status
     rc=$?
 
-    if [ "$rc" == "$OCF_SUCCESS" -a -e ${OCF_RESKEY_master_flag_file} ] ; then
+    if [ "$rc" == "$OCF_NOT_RUNNING" ] ; then
+        #crm_master -l reboot -D
+        crm_master -l reboot -v 0
+        return $OCF_NOT_RUNNING
+    elif [ "$rc" == "$OCF_SUCCESS" -a -e ${OCF_RESKEY_master_flag_file} ] ; then
         rc=$OCF_RUNNING_MASTER
     fi
 
@@ -217,30 +231,18 @@ agent_stop() {
     # remove master flag
     rm -f ${OCF_RESKEY_master_flag_file}
     # remove master score
-    crm_master -l reboot -D
+    #crm_master -l reboot -D
+    crm_master -l reboot -v 0
 
     ocf_log warn "Agent (${OCF_RESKEY_service_name}) going to down."
     service ${OCF_RESKEY_service_name} stop 2>&1 >> /dev/null
 
-    # stop waiting
-    shutdown_timeout=15
-    count=0
-    while [ $count -lt $shutdown_timeout ]; do
-        get_status
-        rc=$?
-        if [ $rc -eq $OCF_NOT_RUNNING ]; then
-            break
-        fi
-        count=`expr $count + 1`
-        sleep 1
-        ocf_log debug "Agent (${OCF_RESKEY_service_name}) still hasn't stopped yet. Waiting ..."
-    done
-
+    sleep 5
     get_status
     rc=$?
     if [ $rc -ne $OCF_NOT_RUNNING ]; then
-        ocf_log info "Agent (${OCF_RESKEY_service_name}) failed to stop after ${shutdown_timeout}s"
-        # todo: kill -TERM
+        ocf_log info "Agent (${OCF_RESKEY_service_name}) failed to stop after ${OCF_RESKEY_shutdown_timeout}s, using kill -TERM."
+        kill -TERM $(pstree -p | awk '/beam\([0-9]+\)/ { q=gensub(/.*beam\(([0-9]+)\).*/, "\\1", 1) ; print q }')
     fi
 
     return $OCF_SUCCESS
@@ -262,7 +264,6 @@ agent_promote() {
         "$OCF_RUNNING_MASTER")
             # Already a master. Unexpected, but not a problem.
             ocf_log info "Resource is already running as Master"
-            #echo "$d  [promote]  rc=$rc  Already_master" >> /tmp/${OCF_RESKEY_app_prefix}.log
             return $OCF_SUCCESS
             ;;
         "$OCF_NOT_RUNNING")
@@ -285,14 +286,11 @@ agent_promote() {
 
 
 agent_demote() {
-    #local d
     local rc
     local pid
 
     get_monitor
     rc=$?
-    #d=`date '+%Y%m%d %H:%M:%S'`
-    #env >> /tmp/env-`echo $d | sed s/[\ \:]//g`
     case "$rc" in
         "$OCF_RUNNING_MASTER")
             # Running as master. Normal, expected behavior.
@@ -301,16 +299,15 @@ agent_demote() {
         "$OCF_SUCCESS")
             # Alread running as slave. Nothing to do.
             ocf_log debug "Resource is currently running as Slave"
-            #echo "$d  [demote]  rc=$rc  Already_slave" >> /tmp/${OCF_RESKEY_app_prefix}.log
             return $OCF_SUCCESS
             ;;
         "$OCF_NOT_RUNNING")
-            # Currently not running. Getting a demote action
-            # in this state is unexpected. Exit with an error
-            # and let the cluster manager recover.
-            ocf_log err "Resource is currently not running"
-            #echo "$d  [demote]  rc=$rc  Resource_not_running  Emergency_exit" >> /tmp/${OCF_RESKEY_app_prefix}.log
-            exit $OCF_ERR_GENERIC
+            ocf_log err "Try to demote currently not running resource. nothing to do."
+            ;;
+        "$OCF_ERR_GENERIC")
+            ocf_log err "Error while demote. Stopping resource."
+            agent_stop
+            rc=$?
             ;;
         *)
             # Failed resource. Let the cluster manager recover.
@@ -322,7 +319,6 @@ agent_demote() {
     # transform slave agent to master
     rm -f ${OCF_RESKEY_master_flag_file}
 
-    #echo "$d  [demote]  rc=$rc" >> /tmp/${OCF_RESKEY_app_prefix}.log
     return $OCF_SUCCESS
 }
 #######################################################################

@@ -90,21 +90,22 @@ class nova::rabbitmq(
       multistate_hash => {
         'type' => 'master',
       },
-      ms_metadata     => {
-        'interleave' => 'true',
-        'master-max' => '1',
+      ms_metadata => {
+        'ordered'     => 'true',
+        'interleave'  => 'true',
+        'master-max'  => '1',
         'master-node-max' => '1',
         'target-role' => 'Master'
       },
       operations => {
         'monitor' => {
           'interval' => '10',
-          'timeout'  => '30'
+          'timeout'  => '60'
         },
         'monitor:Master' => { # name:role
           'role' => 'Master',
           'interval' => '7', # should be non-intercectable with interval from ordinary monitor
-          'timeout'  => '30'
+          'timeout'  => '60'
         },
         'start' => {
           'timeout' => '60'
@@ -125,7 +126,7 @@ class nova::rabbitmq(
     } ->
     exec {'cleanup_rabbitmq_resource':
       path     => "/sbin:/bin:/usr/sbin:/usr/bin",
-      command  => "sleep 20 ; crm_resource --cleanup --node=#{::l3_fqdn_hostname} --resource=p_rabbitmq-server",
+      command  => "sleep 20 ; crm_resource --cleanup --node=$::l3_fqdn_hostname --resource=p_rabbitmq-server",
       returns  => [0,1,""],
       provider => "shell",
     } ->
