@@ -126,11 +126,12 @@ class nova::rabbitmq(
     exec {'cleanup_rabbitmq_resource':
       path     => "/sbin:/bin:/usr/sbin:/usr/bin",
       command  => "sleep 20 ; crm_resource --cleanup --node=#{::l3_fqdn_hostname} --resource=p_rabbitmq-server",
+      returns  => [0,1,""],
       provider => "shell",
     } ->
-    exec {'co-location':
+    exec {'co-location': # Don't use INFINITI in co-location for prevent go down VIP-resource while Rabbitmq not running.
       path     => "/sbin:/bin:/usr/sbin:/usr/bin",
-      command  => "pcs constraint colocation add vip__management_old with master master_p_rabbitmq-server INFINITY",
+      command  => "pcs constraint colocation add vip__management_old with master master_p_rabbitmq-server 10000",
       onlyif   => [ "pcs resource show p_rabbitmq-server", "pcs resource show vip__management_old"],
       unless   => "pcs constraint | grep 'vip__management_old with master_p_rabbitmq-server'",
       provider => "shell",

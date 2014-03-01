@@ -155,13 +155,9 @@ get_monitor() {
         rc=$OCF_RUNNING_MASTER
     fi
 
-    racc=`rabbitmqctl list_queues pid  2>>/dev/null | grep -v "Listing queues" | grep -v "...done" | cut -d'@' -f2 | cut -d"'" -f1 | awk 'BEGIN {max=0} { count[$1]++; if ( count[$1] > max ) { max=count[$1];popular=$1 }} END { print popular }'`
-    hostname | grep -e "^$racc[\..*|$]" 2>&1 >> /dev/null
-    crv=$?
-    sk=0
-    if [ "$crv" == "0" ] ; then
-        sk=1
-    fi
+    #racc=`rabbitmqctl list_queues pid  2>>/dev/null | grep -v "Listing queues" | grep -v "...done" | cut -d'@' -f2 | cut -d"'" -f1 | awk 'BEGIN {max=0} { count[$1]++; if ( count[$1] > max ) { max=count[$1];popular=$1 }} END { print popular }'`
+    racc=`hostname -s`
+    sk=`rabbitmqctl list_queues pid | grep -c "$racc"`
 
     crm_master -l reboot -v $sk
 
