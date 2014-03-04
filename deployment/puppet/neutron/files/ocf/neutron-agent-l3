@@ -311,9 +311,9 @@ neutron_l3_agent_status() {
 
 
 
-clean_up() {
-    q-agent-cleanup.py --sleep=4 --agent=l3 --cleanup-ports
-}
+#clean_up() {
+#    q-agent-cleanup.py --sleep=4 --agent=l3 --cleanup-ports
+#}
 
 
 neutron_l3_agent_monitor() {
@@ -333,7 +333,7 @@ neutron_l3_agent_start() {
         return $OCF_SUCCESS
     fi
 
-    clean_up
+    #clean_up
 
     # run and detach to background agent as daemon.
     # Don't use ocf_run as we're sending the tool's output
@@ -370,7 +370,7 @@ neutron_l3_agent_stop() {
     neutron_l3_agent_status
     rc=$?
     if [ $rc -eq $OCF_NOT_RUNNING ]; then
-        clean_up
+        #clean_up
         ocf_log info "OpenStack Router ($OCF_RESKEY_binary) already stopped"
         return $OCF_SUCCESS
     fi
@@ -418,7 +418,7 @@ neutron_l3_agent_stop() {
     ocf_log info "OpenStack Router ($OCF_RESKEY_binary) stopped"
 
     rm -f $OCF_RESKEY_pid
-    clean_up
+    #clean_up
 
     return $OCF_SUCCESS
 }
