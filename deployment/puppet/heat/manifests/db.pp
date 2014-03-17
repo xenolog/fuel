@@ -10,11 +10,11 @@ class heat::db (
   Package<| title == 'heat-common' |> -> Class['heat::db']
   Class['heat::db::mysql']            -> Class['heat::db']
 
-  validate_re($sql_connection,
-    '(mysql):\/\/(\S+:\S+@\S+\/\S+)?')
+#  validate_re($sql_connection,
+#    '(mysql):\/\/(\S+:\S+@\S+\/\S+)?')
 
   case $sql_connection {
-    /^mysql:\/\//: {
+    /^mysql[:\+]/: {
       $backend_package = false
       include mysql::python
     }
