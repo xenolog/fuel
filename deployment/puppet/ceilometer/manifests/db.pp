@@ -7,7 +7,7 @@
 #    the connection string. format: [driver]://[user]:[password]@[host]/[database]
 #
 class ceilometer::db (
-  $database_connection = 'mysql://ceilometer:ceilometer@localhost/ceilometer'
+  $database_connection = 'mysql+pymysql://ceilometer:ceilometer@localhost/ceilometer'
 ) {
 
   include ceilometer::params

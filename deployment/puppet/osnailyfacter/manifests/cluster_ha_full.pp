@@ -443,7 +443,7 @@ case $::fuel_settings['role'] {
         ensure => present
       }
       class { 'openstack::cinder':
-        sql_connection       => "mysql://cinder:${cinder_hash[db_password]}@${::fuel_settings['management_vip']}/cinder?charset=utf8",
+        sql_connection       => "mysql+pymysql://cinder:${cinder_hash[db_password]}@${::fuel_settings['management_vip']}/cinder?charset=utf8",
         glance_api_servers   => "${::fuel_settings['management_vip']}:9292",
         rabbit_password      => $rabbit_hash[password],
         rabbit_host          => false,

@@ -50,7 +50,7 @@ class openstack::ceilometer (
     # Configure the ceilometer database
     # Only needed if ceilometer::agent::central or ceilometer::api are declared
     class { '::ceilometer::db':
-      database_connection => "${db_type}://${db_user}:${db_password}@${db_host}/${db_dbname}?read_timeout=60",
+      database_connection => "mysql+pymysql://${db_user}:${db_password}@${db_host}/${db_dbname}",
     }
 
     # Install the ceilometer-api service

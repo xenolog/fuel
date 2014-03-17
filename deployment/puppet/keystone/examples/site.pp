@@ -9,7 +9,7 @@ node keystone_sqlite {
     debug    => true,
     catalog_type => 'sql',
   }
-  class { 'keystone::roles::admin': 
+  class { 'keystone::roles::admin':
     email  => 'example@abc.com',
   }
 }
@@ -22,7 +22,7 @@ node keystone_mysql {
   class { 'keystone':
     verbose    => true,
     debug      => true,
-    sql_connection => 'mysql://keystone_admin:keystone@127.0.0.1/keystone',
+    sql_connection => 'mysql+pymysql://keystone_admin:keystone@127.0.0.1/keystone',
     catalog_type   => 'sql',
   }
   class { 'keystone::roles::admin':
@@ -36,16 +36,16 @@ node keystone {
   class { 'keystone':
     verbose    => true,
     debug      => true,
-    sql_connection => 'mysql://keystone_admin:password@127.0.0.1/keystone',
+    sql_connection => 'mysql+pymysql://keystone_admin:password@127.0.0.1/keystone',
     catalog_type   => 'sql',
   }
   class { 'keystone::db::mysql':
     password => 'keystone',
   }
-  class { 'keystone::roles::admin': 
+  class { 'keystone::roles::admin':
     email  => 'example@abc.com',
   }
-  
+
 }
 
 node default {

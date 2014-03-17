@@ -65,7 +65,7 @@ class nova::metadata_api (
   nova_config {'DEFAULT/neutron_connection_host':   value => $service_endpoint }
 
   if !defined(Nova_config['DEFAULT/sql_connection']) {
-    nova_config {'DEFAULT/sql_connection': value => "mysql://nova:nova@${service_endpoint}/nova";}
+    nova_config {'DEFAULT/sql_connection': value => "mysql+pymysql://nova:nova@${service_endpoint}/nova";}
   }
   #if ! $quantum_netnode_on_cnt {
     nova_config {

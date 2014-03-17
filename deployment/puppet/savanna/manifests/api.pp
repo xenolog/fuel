@@ -14,7 +14,7 @@ class savanna::api (
   $vanilla_plugin_class        = 'savanna.plugins.vanilla.plugin:VanillaProvider',
   $hdp_plugin_class            = 'savanna.plugins.hdp.ambariplugin:AmbariPlugin',
   $idh_plugin_class            = 'savanna.plugins.intel.plugin:IDHProvider',
-  $sql_connection              = 'mysql://savanna:savanna@localhost/savanna',
+  $sql_connection              = 'mysql+pymysql://savanna:savanna@localhost/savanna',
   $use_neutron                 = false,
   $use_floating_ips            = true,
   $debug                       = false,
