@@ -50,6 +50,7 @@ class openstack::controller_ha (
       swift_proxies            => $swift_proxies,
       rgw_servers              => $rgw_servers,
       ceilometer               => $ceilometer,
+      is_primary_controller    => $::fuel_settings['role'] ? { 'primary-controller'=>true, default=>false },
     }
 
     class { '::openstack::controller':
