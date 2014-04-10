@@ -227,14 +227,14 @@ Puppet::Parser::Functions::newfunction(:generate_network_config, :type => :rvalu
         if ! endpoints[e_name]
           endpoints[e_name] = create_endpoint()
         end
-        endpoints[e_name][:properties] ||= {}
+        endpoints[e_name][:properties] ||= { :ipaddr => 'none' }
         endpoints[e_name][:properties][:bond_properties] = Hash[t[:properties].map{|k,v| [k.to_s,v]}]
         born_ports.insert(-1, e_name)
         t[:interfaces].each{ |iface|
           if ! endpoints[iface.to_sym]
             endpoints[iface.to_sym] = create_endpoint()
           end
-          endpoints[iface.to_sym][:properties] ||= {}
+          endpoints[iface.to_sym][:properties] ||= { :ipaddr => 'none' }
           endpoints[iface.to_sym][:properties][:bond_master] = t[:name].to_s
         }
       else
