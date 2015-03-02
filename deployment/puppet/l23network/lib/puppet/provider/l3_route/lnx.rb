@@ -55,16 +55,12 @@ Puppet::Type.type(:l3_route).provide(:lnx) do
 
   def self.instances
     rv = []
-    names = []
     routes = get_routes()
     routes.each do |route|
-      _name = route[:network]
-      if names.include? _name
-        # calculate new name. lowers metrics always earlies.
-        name = "#{_name},metric:#{route[:metric]}"
+      if route[:metric].to_i > 0
+        name = "#{route[:network]},metric:#{route[:metric]}"
       else
-        name = _name
-        names << name
+        name = route[:network]
       end
       props = {
         :ensure         => :present,
@@ -83,19 +79,20 @@ Puppet::Type.type(:l3_route).provide(:lnx) do
   end
 
   def create
-    debug("CREATE resource: #{@resource}")  # with hash: '#{m}'")
+    debug("CREATE resource: #{@resource}")
     @old_property_hash = {}
     @property_flush = {}.merge! @resource
-    #p @property_flush
-    #p @property_hash
-    #p @resource.inspect
+    #todo(sv): check accessability of gateway.
+    cmd = ['route', 'add', @resource[:network], 'via', @resource[:gateway]]
+    cmd << ['metric', @resource[:metric]] if @resource[:metric]
+    iproute(cmd)
   end
 
   def destroy
     debug("DESTROY resource: #{@resource}")
-    # todo: Destroing of L3 resource -- is a removing any IP addresses.
-    #       DO NOT!!! put intedafce to Down state.
-    iproute('--force', 'addr', 'flush', 'dev', @resource[:interface])
+    cmd = ['--force', 'route', 'remove', @resource[:network], 'via', @resource[:gateway]]
+    cmd << ['metric', @resource[:metric]] if @resource[:metric]
+    iproute(cmd)
     @property_hash.clear
   end
 
@@ -111,86 +108,42 @@ Puppet::Type.type(:l3_route).provide(:lnx) do
       debug("FLUSH properties: #{@property_flush}")
       #
       # FLUSH changed properties
-      if ! @property_flush[:ipaddr].nil?
-        if @property_flush[:ipaddr].include?(:absent)
-          # flush all ip addresses from interface
-          iproute('--force', 'addr', 'flush', 'dev', @resource[:interface])
-        elsif @property_flush[:ipaddr].include?(:dhcp)
-          # start dhclient on interface
-          iproute('--force', 'addr', 'flush', 'dev', @resource[:interface])
-          #todo: start dhclient
-        else
-          # add-remove static IP addresses
-          if !@old_property_hash.nil? and !@old_property_hash[:ipaddr].nil?
-            (@old_property_hash[:ipaddr] - @property_flush[:ipaddr]).each do |ipaddr|
-              iproute('--force', 'addr', 'del', ipaddr, 'dev', @resource[:interface])
-            end
-            adding_addresses = @property_flush[:ipaddr] - @old_property_hash[:ipaddr]
-          else
-            adding_addresses = @property_flush[:ipaddr]
-          end
-          if adding_addresses.include? :none
-            iproute('--force', 'link', 'set', 'dev', @resource[:interface], 'up')
-          elsif adding_addresses.include? :dhcp
-            debug("!!! DHCP runtime configuration not implemented now !!!")
-          else
-            # add IP addresses
-            adding_addresses.each do |ipaddr|
-              iproute('addr', 'add', ipaddr, 'dev', @resource[:interface])
-            end
-          end
-        end
+      if @property_flush.has_key? :gateway
+        # if @property_flush[:ipaddr].include?(:absent)
+        #   # flush all ip addresses from interface
+        #   iproute('--force', 'addr', 'flush', 'dev', @resource[:interface])
+        # elsif @property_flush[:ipaddr].include?(:dhcp)
+        #   # start dhclient on interface
+        #   iproute('--force', 'addr', 'flush', 'dev', @resource[:interface])
+        #   #todo: start dhclient
+        # else
+        #   # add-remove static IP addresses
+        #   if !@old_property_hash.nil? and !@old_property_hash[:ipaddr].nil?
+        #     (@old_property_hash[:ipaddr] - @property_flush[:ipaddr]).each do |ipaddr|
+        #       iproute('--force', 'addr', 'del', ipaddr, 'dev', @resource[:interface])
+        #     end
+        #     adding_addresses = @property_flush[:ipaddr] - @old_property_hash[:ipaddr]
+        #   else
+        #     adding_addresses = @property_flush[:ipaddr]
+        #   end
+        #   if adding_addresses.include? :none
+        #     iproute('--force', 'link', 'set', 'dev', @resource[:interface], 'up')
+        #   elsif adding_addresses.include? :dhcp
+        #     debug("!!! DHCP runtime configuration not implemented now !!!")
+        #   else
+        #     # add IP addresses
+        #     adding_addresses.each do |ipaddr|
+        #       iproute('addr', 'add', ipaddr, 'dev', @resource[:interface])
+        #     end
+        #   end
+        # end
       end
 
-      if !@property_flush[:gateway].nil? or !@property_flush[:gateway_metric].nil?
-        # clean all default gateways for this interface with any metrics
-        cmdline = ['route', 'del', 'default', 'dev', @resource[:interface]]
-        rc = 0
-        while rc == 0
-          # we should remove route repeatedly for prevent situation
-          # when has multiple default routes through the same router,
-          # but with different metrics
-          begin
-            iproute(cmdline)
-          rescue
-            rc = 1
-          end
-        end
-        # add new route
-        if @resource[:gateway] != :absent
-          cmdline = ['route', 'add', 'default', 'via', @resource[:gateway], 'dev', @resource[:interface]]
-          if ![nil, :absent].include?(@property_flush[:gateway_metric]) and @property_flush[:gateway_metric].to_i > 0
-            cmdline << ['metric', @property_flush[:gateway_metric]]
-          end
-          begin
-            rv = iproute(cmdline)
-          rescue
-            warn("!!! Iproute can't setup new gateway.\n!!! May be you already have default gateway with same metric:")
-            rv = iproute('-f', 'inet', 'route', 'show')
-            warn("#{rv}\n\n")
-          end
-        end
-      end
-
-      # if ! @property_flush[:onboot].nil?
-      #   iproute('link', 'set', 'dev', @resource[:interface], 'up')
-      # end
       @property_hash = resource.to_hash
     end
   end
 
   #-----------------------------------------------------------------
-  # def bridge
-  #   @property_hash[:bridge] || :absent
-  # end
-  # def bridge=(val)
-  #   @property_flush[:bridge] = val
-  # end
-
-  # def name
-  #   @property_hash[:name]
-  # end
-
   def network
     @property_hash[:network] || :absent
   end
@@ -227,39 +180,6 @@ Puppet::Type.type(:l3_route).provide(:lnx) do
   end
 
   #-----------------------------------------------------------------
-
-  def self.get_if_addr_mappings
-    if_list = {}
-    ip_a = iproute('-f', 'inet', 'addr', 'show').split(/\n+/)
-    if_name = nil
-    ip_a.each do |line|
-      line.rstrip!
-      case line
-      when /^\s*\d+\:\s+([\w\-\.]+)[\:\@]/i
-        if_name = $1
-        if_list[if_name] = { :ipaddr => [] }
-      when /^\s+inet\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/\d{1,2})/
-        next if if_name.nil?
-        if_list[if_name][:ipaddr] << $1
-      else
-        next
-      end
-    end
-    return if_list
-  end
-
-  def self.get_if_defroutes_mappings
-    rou_list = {}
-    ip_a = iproute('-f', 'inet', 'route', 'show').split(/\n+/)
-    ip_a.each do |line|
-      line.rstrip!
-      next if !line.match(/^\s*default\s+via\s+([\d\.]+)\s+dev\s+([\w\-\.]+)(\s+metric\s+(\d+))?/)
-      metric = $4.nil?  ?  :absent  :  $4.to_i
-      rou_list[$2] = { :gateway => $1, :gateway_metric => metric } if rou_list[$2].nil?  # do not replace to gateway with highest metric
-    end
-    return rou_list
-  end
-
 
 end
 # vim: set ts=2 sw=2 et :
